@@ -10,15 +10,7 @@ import logging
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',  # Make sure the format string is correct
-)
-
-# Suppress Flask's default logging to avoid conflicts
-werkzeug_logger = logging.getLogger('werkzeug')
-werkzeug_logger.setLevel(logging.ERROR)  # Set this to ERROR or higher to suppress unwanted logs
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
@@ -49,18 +41,24 @@ def fetch_related_queries(url):
 
     with sync_playwright() as playwright:
         logger.info("Launching Chromium browser...")
+
+        # Launch Chromium without headless mode
         browser = playwright.chromium.launch(
             headless=False,
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
                 "--disable-blink-features=AutomationControlled",  # Helps to avoid detection
-            ],
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            ]
         )
 
-        page = agentql.wrap(browser.new_page())
-        page.set_viewport_size({"width": 1280, "height": 800})
+        # Create a new browser context with a specific user agent
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            viewport={"width": 1280, "height": 800}
+        )
+
+        page = agentql.wrap(context.new_page())
 
         logger.info(f"Navigating to {url}")
         page.goto(url)
