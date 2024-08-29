@@ -10,7 +10,15 @@ import logging
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime=s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Make sure the format string is correct
+)
+
+# Suppress Flask's default logging to avoid conflicts
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.setLevel(logging.ERROR)  # Set this to ERROR or higher to suppress unwanted logs
+
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
@@ -41,40 +49,17 @@ def fetch_related_queries(url):
 
     with sync_playwright() as playwright:
         logger.info("Launching Chromium browser...")
-
-        # Launch Chromium with additional options to help spoof headless mode
         browser = playwright.chromium.launch(
             headless=False,
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
-                "--disable-infobars",
-                "--disable-dev-shm-usage",
-                "--no-first-run",
-                "--disable-background-networking",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-breakpad",
-                "--disable-client-side-phishing-detection",
-                "--disable-default-apps",
-                "--disable-hang-monitor",
-                "--disable-prompt-on-repost",
-                "--disable-renderer-backgrounding",
-                "--disable-sync",
-                "--disable-translate",
-                "--metrics-recording-only",
-                "--safebrowsing-disable-auto-update",
-                "--password-store=basic",
-                "--use-mock-keychain",
                 "--disable-blink-features=AutomationControlled",  # Helps to avoid detection
             ],
-            # Fake the user agent to look like a non-headless browser
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         )
 
         page = agentql.wrap(browser.new_page())
-
-        # Set the viewport to a common resolution to avoid detection
         page.set_viewport_size({"width": 1280, "height": 800})
 
         logger.info(f"Navigating to {url}")
@@ -82,7 +67,6 @@ def fetch_related_queries(url):
         page.wait_for_load_state('domcontentloaded')
         logger.info("Page loaded successfully")
 
-        # Handle potential "too many requests" error by refreshing the page
         retries = 0
         max_retries = 5
         while retries < max_retries:
@@ -99,11 +83,8 @@ def fetch_related_queries(url):
             logger.error("Max retries reached. Exiting...")
             return []
 
-        # Scroll to the bottom of the page to ensure all content is loaded after refreshing
         logger.info("Scrolling down to load all content")
         scroll_height = page.evaluate("document.body.scrollHeight")
-
-        # Continue scrolling until no new content loads
         while True:
             page.evaluate("window.scrollTo(0, document.body.scrollHeight);")
             logger.info("Scrolled to bottom, waiting for content to load...")
@@ -115,14 +96,12 @@ def fetch_related_queries(url):
             logger.info("New content detected, scrolling again...")
             scroll_height = new_scroll_height
 
-        # Query for related queries using AgentQL
         logger.info("Querying related queries using AgentQL...")
         related_queries_response = page.query_data(RELATED_QUERIES_QUERY)
         related_queries = related_queries_response.get("related_queries", [])
 
         logger.info(f"Related queries fetched successfully: {related_queries}")
         return related_queries
-
 
 @app.route('/fetch_related_queries', methods=['POST'])
 def fetch_related():
