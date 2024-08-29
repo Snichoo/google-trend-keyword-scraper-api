@@ -10,7 +10,7 @@ import logging
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime=s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Initialize Flask app
@@ -41,8 +41,41 @@ def fetch_related_queries(url):
 
     with sync_playwright() as playwright:
         logger.info("Launching Chromium browser...")
-        browser = playwright.chromium.launch(headless=False)
+
+        # Launch Chromium with additional options to help spoof headless mode
+        browser = playwright.chromium.launch(
+            headless=False,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--disable-dev-shm-usage",
+                "--no-first-run",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-breakpad",
+                "--disable-client-side-phishing-detection",
+                "--disable-default-apps",
+                "--disable-hang-monitor",
+                "--disable-prompt-on-repost",
+                "--disable-renderer-backgrounding",
+                "--disable-sync",
+                "--disable-translate",
+                "--metrics-recording-only",
+                "--safebrowsing-disable-auto-update",
+                "--password-store=basic",
+                "--use-mock-keychain",
+                "--disable-blink-features=AutomationControlled",  # Helps to avoid detection
+            ],
+            # Fake the user agent to look like a non-headless browser
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        )
+
         page = agentql.wrap(browser.new_page())
+
+        # Set the viewport to a common resolution to avoid detection
+        page.set_viewport_size({"width": 1280, "height": 800})
 
         logger.info(f"Navigating to {url}")
         page.goto(url)
