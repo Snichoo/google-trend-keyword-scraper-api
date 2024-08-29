@@ -25,8 +25,10 @@ RUN pip install playwright
 # Install the browser binaries
 RUN playwright install
 
-# Copy the current directory contents into the container at /app
+# Set the working directory in the container
 WORKDIR /app
+
+# Copy the current directory contents into the container at /app
 COPY . /app
 
 # Install any Python dependencies in requirements.txt
