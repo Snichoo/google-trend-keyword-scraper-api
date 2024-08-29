@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libatk-bridge2.0-0 \
     libgtk-3-0 \
-    libgbm1 \  # Add this line to install the missing dependency
-    libxshmfence1 \  # Additional dependencies often required for Chromium
+    libgbm1 \
+    libxshmfence1 \
     libpangocairo-1.0-0 \
     libpangoft2-1.0-0 \
     libcairo2 \
