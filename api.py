@@ -42,7 +42,7 @@ def fetch_related_queries(url):
     with sync_playwright() as playwright:
         logger.info("Launching Chromium browser...")
 
-        # Launch Chromium without headless mode
+        # Launch Chromium without headless mode and disable automation detection
         browser = playwright.chromium.launch(
             headless=False,
             args=[
@@ -52,17 +52,32 @@ def fetch_related_queries(url):
             ]
         )
 
-        # Create a new browser context with a specific user agent
+        # Create a new browser context with specific user agent and viewport size
         context = browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             viewport={"width": 1280, "height": 800}
         )
 
+        # Set additional HTTP headers to mimic a regular browser
+        context.set_extra_http_headers({
+            "sec-ch-ua": '"Chromium";v="92", " Not A;Brand";v="99", "Google Chrome";v="92"',
+            "sec-ch-ua-mobile": "?0"
+        })
+
         page = agentql.wrap(context.new_page())
+
+        # Optional: Intercept and modify requests if necessary
+        def handle_route(route):
+            if "headless" in route.request.url:
+                route.abort()
+            else:
+                route.continue_()
+
+        page.route("**/*", handle_route)
 
         logger.info(f"Navigating to {url}")
         page.goto(url)
-        page.wait_for_load_state('domcontentloaded')
+        page.wait_for_load_state('networkidle')  # Wait until network activity is idle to ensure full page load
         logger.info("Page loaded successfully")
 
         retries = 0
